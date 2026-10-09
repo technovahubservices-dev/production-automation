@@ -1,0 +1,319 @@
+.loginPage {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(ellipse at 50% 44%, #fffdf7 0%, rgba(255, 253, 247, 0.86) 24%, transparent 66%),
+    radial-gradient(ellipse at 100% 100%, rgba(201, 107, 59, 0.18) 0%, transparent 42%),
+    linear-gradient(rgba(17, 24, 28, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(17, 24, 28, 0.022) 1px, transparent 1px),
+    #f3f0e8;
+  background-size: auto, auto, 48px 48px, 48px 48px;
+  font-family: "Inter", sans-serif;
+}
+
+/* All architecture is decorative and clipped independently of the form. */
+.loginIndustrialBackdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.loginIndustrialBackdrop *,
+.loginIndustrialBackdrop::before,
+.loginIndustrialBackdrop::after,
+.loginSteelFrame::before,
+.loginSteelFrame::after {
+  pointer-events: none;
+}
+
+.loginIndustrialBackdrop::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(201, 107, 59, 0.65) 1px, transparent 1.5px) 0 0 / 12px 12px;
+  mask:
+    linear-gradient(#000, #000) 8% 18% / 96px 72px no-repeat,
+    linear-gradient(#000, #000) 90% 66% / 96px 72px no-repeat;
+  opacity: 0.85;
+}
+
+.loginIndustrialBackdrop::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 43%;
+  height: 73%;
+  background: linear-gradient(132deg,
+    transparent 0 42%, rgba(201, 107, 59, 0.85) 42% 42.2%,
+    transparent 42.2% 47%, #d5c7b3 47% 58%,
+    #a6b1b3 58% 68%, rgba(53, 67, 74, 0.62) 68% 75%,
+    #c96b3b 75% 75.4%, #bd9277 75.4% 86%,
+    #dfceb7 86%);
+  mask-image: linear-gradient(to bottom, transparent, #000 40%);
+}
+
+.loginSteelFrame {
+  position: absolute;
+  left: -90px;
+  top: 32%;
+  width: 530px;
+  height: 420px;
+  opacity: 0.28;
+  transform: rotate(-6deg);
+}
+
+.loginSteelFrame span {
+  position: absolute;
+  width: 330px;
+  height: 350px;
+  background: #52636b;
+  clip-path: polygon(0 100%, 0 26%, 50% 0, 100% 26%, 100% 100%, 98.5% 100%, 98.5% 27%, 50% 1.6%, 1.5% 27%, 1.5% 100%);
+}
+
+.loginSteelFrame span:nth-child(1) { left: 0; top: 66px; }
+.loginSteelFrame span:nth-child(2) { left: 65px; top: 44px; }
+.loginSteelFrame span:nth-child(3) { left: 130px; top: 22px; }
+.loginSteelFrame span:nth-child(4) { left: 195px; top: 0; }
+
+.loginSteelFrame::before,
+.loginSteelFrame::after {
+  content: "";
+  position: absolute;
+  width: 205px;
+  height: 260px;
+  border-top: 2px solid #52636b;
+  border-bottom: 2px solid #52636b;
+  background: linear-gradient(52deg, transparent 49.5%, #52636b 49.5% 50.2%, transparent 50.2%);
+  transform: skewY(-19deg);
+}
+
+.loginSteelFrame::before { left: 0; top: 124px; }
+.loginSteelFrame::after { left: 328px; top: 124px; }
+
+.loginPanel {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  padding: 42px;
+  background: #faf8f2;
+  border: 1px solid #d8d4c9;
+  box-shadow: 0 24px 64px rgba(17, 24, 28, 0.14), 0 3px 12px rgba(17, 24, 28, 0.04);
+}
+
+.loginBrand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding-bottom: 28px;
+  margin-bottom: 32px;
+  border-bottom: 1px solid #d8d4c9;
+}
+
+.loginBrandMark {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  background: #172126;
+  color: #f4b942;
+  font-size: 21px;
+  font-weight: 800;
+}
+
+.loginBrand h1 {
+  margin: 0;
+  color: #172126;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 21px;
+  letter-spacing: 1px;
+}
+
+.loginBrand span {
+  display: block;
+  margin-top: 3px;
+  color: #667278;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.loginHeading {
+  margin-bottom: 30px;
+}
+
+.loginHeading > span {
+  color: #c96b3b;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.8px;
+}
+
+.loginHeading h2 {
+  margin: 9px 0 8px;
+  color: #172126;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 31px;
+  line-height: 1.1;
+}
+
+.loginHeading p {
+  margin: 0;
+  color: #667278;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 21px;
+}
+
+.loginForm label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #445158;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.3px;
+}
+
+.loginInput {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0 15px;
+  background: #ffffff;
+  border: 1px solid #d8d4c9;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.loginInput:focus-within {
+  border-color: #c96b3b;
+  box-shadow: 0 0 0 3px rgba(201, 107, 59, 0.1);
+}
+
+.loginInput svg {
+  flex-shrink: 0;
+  color: #8b9498;
+}
+
+.loginInput:focus-within svg {
+  color: #c96b3b;
+}
+
+.loginInput input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #172126;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.loginInput input::placeholder {
+  color: #a3aaad;
+}
+
+.loginPasswordInput input {
+  flex: 1;
+  min-width: 0;
+}
+
+.loginPasswordToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.loginError {
+  padding: 11px 13px;
+  background: #fff1ed;
+  border-left: 3px solid #c96b3b;
+  color: #9c3f28;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.loginForm > button {
+  height: 52px;
+  margin-top: 3px;
+  border: 0;
+  background: #172126;
+  color: #f7f5ef;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.loginForm > button:hover:not(:disabled) {
+  background: #c96b3b;
+  transform: translateY(-1px);
+}
+
+.loginForm > button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.loginFooter {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid #e2ded4;
+  color: #8b9498;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-align: center;
+}
+
+@media (max-width: 1000px) {
+  .loginSteelFrame { left: -170px; opacity: 0.18; transform: scale(0.8) rotate(-6deg); }
+  .loginIndustrialBackdrop::after { width: 34%; opacity: 0.75; }
+  .loginIndustrialBackdrop::before { opacity: 0.65; }
+}
+
+@media (max-width: 600px) {
+  .loginSteelFrame,
+  .loginIndustrialBackdrop::before { display: none; }
+  .loginIndustrialBackdrop::after { width: 60%; height: 30%; opacity: 0.35; }
+}
+
+@media (max-width: 520px) {
+  .loginPage {
+    padding: 16px;
+  }
+
+  .loginPanel {
+    padding: 30px 22px;
+  }
+
+  .loginHeading h2 {
+    font-size: 27px;
+  }
+}
