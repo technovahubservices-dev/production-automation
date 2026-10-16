@@ -1,0 +1,67 @@
+[
+  {
+    "name": "CNC",
+    "unit": "KG",
+    "active": true
+  },
+  {
+    "name": "PTW",
+    "unit": "KG",
+    "active": true
+  },
+  {
+    "name": "SETTING",
+    "unit": "KG",
+    "active": true
+  },
+  {
+    "name": "WELDING",
+    "unit": "RMT",
+    "active": true
+  },
+  {
+    "name": "CLEANING",
+    "unit": "",
+    "active": true
+  },
+  {
+    "name": "COLUMN",
+    "unit": "",
+    "active": true
+  },
+  {
+    "name": "RAFTER",
+    "unit": "",
+    "active": true
+  },
+  {
+    "name": "WIND BRACING",
+    "unit": "",
+    "active": true
+  },
+  {
+    "name": "CLEAT",
+    "unit": "",
+    "active": true
+  },
+  {
+    "name": "LOUSE PLATE",
+    "unit": "",
+    "active": true
+  },
+  {
+    "name": "STAY",
+    "unit": "",
+    "active": true
+  },
+  {
+    "name": "SAG ROD ASSEMBLY",
+    "unit": "",
+    "active": true
+  },
+  {
+    "name": "PURLIN",
+    "unit": "",
+    "active": true
+  }
+]

@@ -1,5 +1,7 @@
+const { resolveDepartments } = require("../config/departments");
 const SystemSettings = require("../models/SystemSettings");
 const WorkEntry = require("../models/WorkEntry");
+const Worker = require("../models/Worker");
 
 /* =========================================
    INDIA TODAY DATE
@@ -70,7 +72,7 @@ exports.createWorkEntry = async (req, res) => {
     // -----------------------------------------
     // REQUIRED FIELD VALIDATION
     // -----------------------------------------
-    if (!employeeId || !employeeName || !date || !department) {
+    if (!employeeId || (req.user?.role !== "admin" && !employeeName) || !date || !department) {
       return res.status(400).json({
         success: false,
         message:
@@ -98,6 +100,12 @@ exports.createWorkEntry = async (req, res) => {
     // HOURS VALIDATION
     // -----------------------------------------
 
+    let selectedWorker;
+    if (req.user?.role === "admin") {
+      if (typeof employeeId !== "string") return res.status(400).json({ success: false, message: "Select an active employee." });
+      selectedWorker = await Worker.findOne({ employeeId: employeeId.trim().toUpperCase(), status: "Active" });
+      if (!selectedWorker) return res.status(400).json({ success: false, message: "Select an active employee from the employee list." });
+    }
     const duration = calculateWorkDuration(inTime, outTime);
     if (!duration) {
       return res.status(400).json({ success: false, message: "Valid In Time and Out Time are required." });
@@ -122,7 +130,7 @@ exports.createWorkEntry = async (req, res) => {
     // -----------------------------------------
 
     const configuredDepartment =
-      settings.departments.find(
+      resolveDepartments(settings.departments).find(
         (item) => item.name === department
       );
 
@@ -157,6 +165,8 @@ exports.createWorkEntry = async (req, res) => {
     const workEntry = await WorkEntry.create({
       ...req.body,
       editHistory: [],
+      employeeId: selectedWorker ? selectedWorker.employeeId : employeeId,
+      employeeName: selectedWorker ? selectedWorker.name : employeeName,
 
       // Admin date is forced again server-side.
       date:
@@ -175,7 +185,7 @@ exports.createWorkEntry = async (req, res) => {
       data: workEntry,
     });
   } catch (error) {
-    console.error(
+    console.log(
       "Create work entry error:",
       error
     );
@@ -201,7 +211,14 @@ exports.getWorkEntries = async (req, res) => {
     // -----------------------------------------
 
     if (req.user?.role === "admin") {
-      filter.date = getIndiaToday();
+      const today = getIndiaToday();
+      // The authenticated database role controls access; client dates cannot widen it.
+      if ([req.query.date, req.query.fromDate, req.query.toDate].some(
+        (value) => value !== undefined && value !== today
+      )) {
+        return res.status(403).json({ success: false, message: "Admin can only access work entries for today." });
+      }
+      filter.date = today;
     } else {
       const { date, fromDate, toDate } = req.query;
       const validDate = (value) => {
@@ -252,7 +269,7 @@ exports.getWorkEntries = async (req, res) => {
       data: entries,
     });
   } catch (error) {
-    console.error(
+    console.log(
       "Get work entries error:",
       error
     );
@@ -347,7 +364,7 @@ exports.updateWorkEntry = async (req, res) => {
 
     if (changes.department !== undefined) {
       const configuredDepartment =
-        settings.departments.find(
+        resolveDepartments(settings.departments).find(
           (item) =>
             item.name === changes.department
         );
@@ -515,7 +532,7 @@ exports.updateWorkEntry = async (req, res) => {
       data: existingEntry,
     });
   } catch (error) {
-    console.error(
+    console.log(
       "Update work entry error:",
       error
     );
@@ -543,7 +560,7 @@ exports.deleteWorkEntry = async (req, res) => {
         "Deleting work entries is not allowed.",
     });
   } catch (error) {
-    console.error(
+    console.log(
       "Delete work entry error:",
       error
     );

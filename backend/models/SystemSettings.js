@@ -1,3 +1,4 @@
+const { defaults } = require("../config/departments");
 const mongoose = require("mongoose");
 
 const systemSettingsSchema = new mongoose.Schema(
@@ -31,13 +32,7 @@ const systemSettingsSchema = new mongoose.Schema(
           },
         },
       ],
-      default: [
-        { name: "CNC", unit: "KG", active: true },
-        { name: "PTW", unit: "KG", active: true },
-        { name: "SETTING", unit: "KG", active: true },
-        { name: "WELDING", unit: "RMT", active: true },
-        { name: "CLEANING", unit: "", active: true },
-      ],
+      default: () => defaults.map(department => ({ ...department })),
     },
 
     shifts: {

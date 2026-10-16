@@ -1,3 +1,4 @@
+import { useAccessDate, formatToday } from "../hooks/useAccessDate";
 import { getEntryProduction, calculateProductionTotals, formatProduction, formatTon, formatRmt } from "../context/productionUnits";
 import { useSettings } from "../context/SettingsContext";
 import { API_URL } from "../config/api";
@@ -10,16 +11,11 @@ import {
   Users,
 } from "lucide-react";
 
-const departments = [
-  "CNC",
-  "PTW",
-  "SETTING",
-  "WELDING",
-  "CLEANING",
-];
 
-function Reports() {
-  const { settings } = useSettings();
+function Reports({ user }) {
+  const isAdmin = user?.role === "admin";
+  const { settings, departments: configuredDepartments } = useSettings();
+  const departments = useMemo(() => configuredDepartments.map(department => department.name), [configuredDepartments]);
   const preferences = settings?.reportPreferences || {};
   const showEmployeeId = preferences.showEmployeeId === true;
   const showProject = preferences.showProject === true;
@@ -27,9 +23,12 @@ function Reports() {
   const reportTitle = preferences.reportTitle || "Report";
   const activityColumns = `1.35fr .7fr ${showProject ? "1.1fr " : ""}.55fr .5fr .65fr ${showRemarks ? "1.2fr" : ""}`;
   const [selectedDate, setSelectedDate] =
-    useState("2026-09-30");
+    useAccessDate(user, "2026-09-30");
 
-  const [entries, setEntries] = useState([]);
+
+  const [storedEntries, setEntries] = useState([]);
+  const entries = isAdmin ? storedEntries.filter((entry) => entry.date === selectedDate) : storedEntries;
+
   const [loading, setLoading] = useState(true);
 
   const loadReport = async () => {
@@ -50,7 +49,7 @@ function Reports() {
 
       setEntries(result.data || []);
     } catch (error) {
-      console.error("Report load error:", error);
+      console.log("Report load error:", error);
     } finally {
       setLoading(false);
     }
@@ -106,7 +105,7 @@ function Reports() {
           0
         );
 
-      const { value: output, unit } = production.departments[department];
+      const { value: output, unit } = production.departments[department] || { value: 0, unit: "" };
 
       return {
         department,
@@ -117,7 +116,7 @@ function Reports() {
         unit,
       };
     });
-  }, [entries, production]);
+  }, [entries, production, departments]);
 
   const handlePrint = () => {
     window.print();
@@ -146,7 +145,7 @@ function Reports() {
           <label>
             <span>REPORT DATE</span>
 
-            <input
+            {isAdmin ? <strong>{formatToday(selectedDate)}</strong> : (<input
               type="date"
               value={selectedDate}
               onChange={(event) =>
@@ -154,7 +153,7 @@ function Reports() {
                   event.target.value
                 )
               }
-            />
+            />)}
           </label>
 
           <button

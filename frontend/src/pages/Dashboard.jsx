@@ -1,10 +1,11 @@
+import { useSettings } from "../context/SettingsContext";
+import { useAccessDate, formatToday } from "../hooks/useAccessDate";
 import { kgToTon, calculateProductionTotals, formatProduction, formatTon, formatRmt } from "../context/productionUnits";
 import { API_URL } from "../config/api";
 import { useEffect, useMemo, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Sector, Tooltip } from "recharts";
 import { Activity, CalendarDays, Clock3, Factory, FolderKanban, Users, X } from "lucide-react";
 
-const DEPARTMENTS = ["CNC", "PTW", "SETTING", "WELDING", "CLEANING"];
 const COLORS = ["#C96B3B", "#F0B84B", "#52798A", "#8E999D", "#1B272D"];
 const API = `${API_URL}/api`;
 
@@ -54,9 +55,14 @@ function ChartTooltip({ active, payload, coordinate, viewBox, wrapper }) {
   );
 }
 
-function Dashboard() {
-  const [selectedDate, setSelectedDate] = useState(localDate);
-  const [entries, setEntries] = useState([]);
+function Dashboard({ user }) {
+  const { departments: configuredDepartments } = useSettings();
+  const isAdmin = user?.role === "admin";
+  const [selectedDate, setSelectedDate] = useAccessDate(user, localDate);
+
+  const [storedEntries, setEntries] = useState([]);
+  const entries = isAdmin ? storedEntries.filter((entry) => entry.date === selectedDate) : storedEntries;
+
   const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -73,7 +79,7 @@ function Dashboard() {
       try {
         const [entryResponse, workerResponse] = await Promise.all([
           fetch(`${API}/work-entries?date=${encodeURIComponent(selectedDate)}`, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }),
-          fetch(`${API}/workers`),
+          fetch(`${API}/workers`, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }),
         ]);
         const [entryResult, workerResult] = await Promise.all([
           entryResponse.json(),
@@ -110,19 +116,19 @@ function Dashboard() {
 
   const production = useMemo(() => calculateProductionTotals(entries), [entries]);
 
-  const departmentData = useMemo(() => DEPARTMENTS.map((name, index) => {
+  const departmentData = useMemo(() => configuredDepartments.map(({ name }, index) => {
     const rows = entries.filter((entry) => entry.department === name);
     const hours = rows.reduce((sum, entry) => sum + Number(entry.hours || 0), 0);
     const workerIds = [...new Set(rows.map((entry) => String(entry.employeeId || "").trim().toUpperCase()).filter(Boolean))];
     const projects = [...new Set(rows.map((entry) => (entry.project || "").trim()).filter(Boolean))];
-    const { value: output, unit } = production.departments[name];
+    const { value: output, unit } = production.departments[name] || { value: 0, unit: "" };
     return {
       name, index, rows, hours, entries: rows.length, workerIds, workers: workerIds.length,
       projects: projects.length, output, unit,
       outputLabel: formatProduction(production.departments[name]),
       share: 0,
     };
-  }), [entries, production]);
+  }), [entries, production, configuredDepartments]);
 
   const totalHours = departmentData.reduce((sum, department) => sum + department.hours, 0);
   const chartData = departmentData.map((department) => ({
@@ -203,7 +209,7 @@ function Dashboard() {
           <h1>Production<br /><em>dashboard.</em></h1>
           <p>A visual overview of production, workforce and department activity.</p>
         </div>
-        <label className="dashboardDatePicker"><span><CalendarDays size={15} /> PRODUCTION DATE</span><input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} /></label>
+        <label className="dashboardDatePicker"><span><CalendarDays size={15} /> PRODUCTION DATE</span>{isAdmin ? <strong>{formatToday(selectedDate)}</strong> : (<input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />)}</label>
       </header>
 
       {loadError && <div className="dashboardError" role="alert">{loadError}</div>}
@@ -231,7 +237,7 @@ function Dashboard() {
                       <PieChart>
                         {totalHours === 0 && <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="dashboardChartEmpty">NO ACTIVITY RECORDED</text>}
                         <Pie data={chartData.filter((item) => item.hours > 0)} dataKey="hours" nameKey="name" innerRadius="68%" outerRadius="88%" paddingAngle={3} stroke="none" activeIndex={chartSelectionName ? chartData.filter((item) => item.hours > 0).findIndex((item) => item.name === chartSelectionName) : undefined} activeShape={ActiveSlice} onMouseEnter={(data) => setHoveredDepartment(data.name)} onMouseLeave={() => setHoveredDepartment(null)} onClick={(data) => setSelectedDepartment(selectedDepartment === data.name ? null : data.name)} isAnimationActive animationDuration={240}>
-                          {chartData.filter((item) => item.hours > 0).map((item) => <Cell key={item.name} fill={COLORS[item.index]} fillOpacity={chartSelectionName && chartSelectionName !== item.name ? 0.6 : 1} cursor="pointer" />)}
+                          {chartData.filter((item) => item.hours > 0).map((item) => <Cell key={item.name} fill={COLORS[item.index % COLORS.length]} fillOpacity={chartSelectionName && chartSelectionName !== item.name ? 0.6 : 1} cursor="pointer" />)}
                         </Pie>
                         <Tooltip content={<ChartTooltip />} wrapperStyle={{ pointerEvents: "none", zIndex: 20 }} />
                       </PieChart>
@@ -241,14 +247,14 @@ function Dashboard() {
                 </div>
                 <div className="dashboardDepartmentDetail">
                   {activeDepartment ? <>
-                    <div className="dashboardDetailHeading" style={{ "--department-color": COLORS[activeDepartment.index] }}><span>{activeDepartment.name} DEPARTMENT</span><strong>{formatHours(activeDepartment.hours)}H</strong></div>
+                    <div className="dashboardDetailHeading" style={{ "--department-color": COLORS[activeDepartment.index % COLORS.length] }}><span>{activeDepartment.name} DEPARTMENT</span><strong>{formatHours(activeDepartment.hours)}H</strong></div>
                     <div className="dashboardDetailMetrics"><div><span>WORKERS</span><strong>{activeDepartment.workers}</strong></div><div><span>WORK ENTRIES</span><strong>{activeDepartment.entries}</strong></div><div><span>OUTPUT</span><strong>{activeDepartment.outputLabel || "—"}</strong></div><div><span>ACTIVE PROJECTS</span><strong>{activeDepartment.projects}</strong></div></div>
                     <div className="dashboardDepartmentWorkers"><span className="dashboardSubhead">WORKERS ON THIS DEPARTMENT</span>{departmentWorkers.length ? departmentWorkers.map((person) => <button type="button" key={person.employeeId} onClick={() => setSelectedWorkerId(person.employeeId)}><span className="dashboardMiniAvatar">{person.employeeName.charAt(0)}</span><strong>{person.employeeName}<small>{person.employeeId}</small></strong><b>{formatHours(person.departmentEntries.reduce((sum, row) => sum + Number(row.hours || 0), 0))}H</b><span className="dashboardWorkerArrow" aria-hidden="true">›</span></button>) : <p>No workers recorded.</p>}</div>
                     <button type="button" className="dashboardClearSelection" onClick={() => setSelectedDepartment(null)}>CLEAR DEPARTMENT SELECTION</button>
                   </> : <div className="dashboardDepartmentPrompt"><span>{totalHours ? "SELECT A DEPARTMENT" : "NO ACTIVITY RECORDED"}</span><p>{totalHours ? "Choose a chart segment to inspect its workforce and production output." : "Department details will appear here when work is recorded."}</p></div>}
                 </div>
               </div>
-              <div className="dashboardLegend">{chartData.map((item) => <button type="button" key={item.name} aria-pressed={selectedDepartment === item.name} style={{ "--department-color": COLORS[item.index] }} className={selectedDepartment === item.name ? "selected" : ""} onMouseEnter={() => item.hours > 0 && setHoveredDepartment(item.name)} onMouseLeave={() => setHoveredDepartment(null)} onClick={() => item.hours > 0 && setSelectedDepartment(selectedDepartment === item.name ? null : item.name)}><i style={{ "--dashboard-swatch": COLORS[item.index] }} />{item.name}<b>{formatHours(item.hours)}H</b></button>)}</div>
+              <div className="dashboardLegend">{chartData.map((item) => <button type="button" key={item.name} aria-pressed={selectedDepartment === item.name} style={{ "--department-color": COLORS[item.index % COLORS.length] }} className={selectedDepartment === item.name ? "selected" : ""} onMouseEnter={() => item.hours > 0 && setHoveredDepartment(item.name)} onMouseLeave={() => setHoveredDepartment(null)} onClick={() => item.hours > 0 && setSelectedDepartment(selectedDepartment === item.name ? null : item.name)}><i style={{ "--dashboard-swatch": COLORS[item.index % COLORS.length] }} />{item.name}<b>{formatHours(item.hours)}H</b></button>)}</div>
             </article>
 
             <article className="dashboardOutputPanel">
@@ -256,7 +262,7 @@ function Dashboard() {
               <div className="dashboardOutputRows">{departmentData.map((item) => {
                 const scale = Math.max(0, ...departmentData.filter((d) => (item.unit ? d.unit === item.unit : d.name === item.name)).map((d) => d.output));
                 const percent = scale ? item.output / scale * 100 : 0;
-                return <button type="button" aria-pressed={selectedDepartment === item.name} style={{ "--department-color": COLORS[item.index] }} className={`dashboardOutputRow ${selectedDepartment === item.name ? "selected" : ""}`} key={item.name} onClick={() => setSelectedDepartment(selectedDepartment === item.name ? null : item.name)}><div><strong>{item.name}</strong><b>{item.name !== "CLEANING" ? item.outputLabel : "—"}</b></div>{item.unit && <div className={`dashboardOutputTrack ${item.unit === "RMT" ? "rmt" : "kg"}`}><i style={{ width: `${percent}%` }} /></div>}</button>;
+                return <button type="button" aria-pressed={selectedDepartment === item.name} style={{ "--department-color": COLORS[item.index % COLORS.length] }} className={`dashboardOutputRow ${selectedDepartment === item.name ? "selected" : ""}`} key={item.name} onClick={() => setSelectedDepartment(selectedDepartment === item.name ? null : item.name)}><div><strong>{item.name}</strong><b>{item.name !== "CLEANING" ? item.outputLabel : "—"}</b></div>{item.unit && <div className={`dashboardOutputTrack ${item.unit === "RMT" ? "rmt" : "kg"}`}><i style={{ width: `${percent}%` }} /></div>}</button>;
               })}</div>
               <p className="dashboardOutputNote">Different units are scaled separately.</p>
             </article>

@@ -71,7 +71,7 @@ exports.login = async (req, res) => {
         });
       } catch {
         // SMTP errors can contain credentials or server responses. Never log them.
-        console.error("Login email failed: notification could not be sent.");
+        console.log("Login email failed: notification could not be sent.");
       }
     }
 
@@ -89,7 +89,7 @@ exports.login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Login error:", error);
+    console.log("Login error:", error);
 
     return res.status(500).json({
       success: false,

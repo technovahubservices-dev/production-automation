@@ -128,7 +128,7 @@ function Settings({ user }) {
       updateSettings(result.data);
       setMessage("Settings saved successfully.");
     } catch (err) {
-      console.error(err);
+      console.log(err);
       setError(err.message || "Unable to save settings.");
     } finally {
       setSaving(false);
@@ -191,272 +191,245 @@ function Settings({ user }) {
         </div>
       )}
 
-      <div className="settingsGrid">
-        {/* COMPANY */}
+      <div className="settingsGrid settingsOrganizedGrid">
+        <div className="settingsColumn settingsGeneralColumn">
+          {/* COMPANY */}
 
-        <section className="settingsSection">
-          <div className="settingsSectionHeader">
-            <span className="settingsNumber">01</span>
+          <section className="settingsSection">
+            <div className="settingsSectionHeader">
+              <span className="settingsNumber">01</span>
 
-            <div className="settingsSectionIcon">
-              <Building2 size={19} />
+              <div className="settingsSectionIcon">
+                <Building2 size={19} />
+              </div>
+
+              <div>
+                <p>COMPANY / PLANT</p>
+                <h2>Facility information</h2>
+              </div>
             </div>
 
-            <div>
-              <p>COMPANY / PLANT</p>
-              <h2>Facility information</h2>
-            </div>
-          </div>
-
-          <div className="settingsFormGrid">
-            <label className="settingsField">
-              <span>COMPANY NAME</span>
-
-              <input
-                type="text"
-                name="companyName"
-                value={settings.companyName || ""}
-                onChange={handleBasicChange}
-              />
-            </label>
-
-            <label className="settingsField">
-              <span>PLANT / SITE NAME</span>
-
-              <div className="settingsInputWithIcon">
-                <Factory size={16} />
+            <div className="settingsFormGrid">
+              <label className="settingsField">
+                <span>COMPANY NAME</span>
 
                 <input
                   type="text"
-                  name="plantName"
-                  value={settings.plantName || ""}
+                  name="companyName"
+                  value={settings.companyName || ""}
                   onChange={handleBasicChange}
                 />
-              </div>
-            </label>
-          </div>
-        </section>
+              </label>
 
-        {/* DEPARTMENTS */}
+              <label className="settingsField">
+                <span>PLANT / SITE NAME</span>
 
-        <section className="settingsSection">
-          <div className="settingsSectionHeader">
-            <span className="settingsNumber">02</span>
+                <div className="settingsInputWithIcon">
+                  <Factory size={16} />
 
-            <div>
-              <p>PRODUCTION / DEPARTMENTS</p>
-              <h2>Department configuration</h2>
-            </div>
-          </div>
-
-          <div className="settingsDepartmentList">
-            {settings.departments?.map((department, index) => (
-              <div
-                className="settingsDepartmentRow"
-                key={department._id || department.name}
-              >
-                <div>
-                  <strong>{department.name}</strong>
-
-                  <span>
-                    {department.active ? "ACTIVE" : "INACTIVE"}
-                  </span>
+                  <input
+                    type="text"
+                    name="plantName"
+                    value={settings.plantName || ""}
+                    onChange={handleBasicChange}
+                  />
                 </div>
+              </label>
+            </div>
+          </section>
+          {/* SHIFTS */}
 
-                <button
-                  type="button"
-                  className={`settingsToggle ${
-                    department.active ? "active" : ""
-                  }`}
-                  onClick={() => handleDepartmentToggle(index)}
-                  aria-pressed={department.active}
-                >
-                  <span />
-                </button>
+          <section className="settingsSection">
+            <div className="settingsSectionHeader">
+              <span className="settingsNumber">02</span>
+
+              <div className="settingsSectionIcon">
+                <Clock3 size={19} />
               </div>
-            ))}
-          </div>
-        </section>
 
-        {/* SHIFTS */}
-
-        <section className="settingsSection">
-          <div className="settingsSectionHeader">
-            <span className="settingsNumber">03</span>
-
-            <div className="settingsSectionIcon">
-              <Clock3 size={19} />
+              <div>
+                <p>WORKFORCE / SHIFTS</p>
+                <h2>Shift timings</h2>
+              </div>
             </div>
 
-            <div>
-              <p>WORKFORCE / SHIFTS</p>
-              <h2>Shift timings</h2>
+            <div className="settingsShiftList">
+              {settings.shifts?.map((shift, index) => (
+                <div
+                  className="settingsShiftRow"
+                  key={shift._id || shift.name}
+                >
+                  <strong>{shift.name}</strong>
+
+                  <label>
+                    <span>START</span>
+
+                    <input
+                      type="time"
+                      value={shift.startTime || ""}
+                      onChange={(event) =>
+                        handleShiftChange(
+                          index,
+                          "startTime",
+                          event.target.value
+                        )
+                      }
+                    />
+                  </label>
+
+                  <span className="settingsShiftArrow">→</span>
+
+                  <label>
+                    <span>END</span>
+
+                    <input
+                      type="time"
+                      value={shift.endTime || ""}
+                      onChange={(event) =>
+                        handleShiftChange(
+                          index,
+                          "endTime",
+                          event.target.value
+                        )
+                      }
+                    />
+                  </label>
+                </div>
+              ))}
             </div>
-          </div>
+          </section>
+          {/* REPORT */}
 
-          <div className="settingsShiftList">
-            {settings.shifts?.map((shift, index) => (
-              <div
-                className="settingsShiftRow"
-                key={shift._id || shift.name}
-              >
-                <strong>{shift.name}</strong>
+          <section className="settingsSection">
+            <div className="settingsSectionHeader">
+              <span className="settingsNumber">03</span>
 
+              <div className="settingsSectionIcon">
+                <FileText size={19} />
+              </div>
+
+              <div>
+                <p>REPORT / PREFERENCES</p>
+                <h2>Daily report configuration</h2>
+              </div>
+            </div>
+
+            <div className="settingsReportGrid">
+              <label className="settingsField">
+                <span>REPORT TITLE</span>
+
+                <input
+                  type="text"
+                  name="reportTitle"
+                  value={
+                    settings.reportPreferences?.reportTitle || ""
+                  }
+                  onChange={handleReportChange}
+                />
+              </label>
+
+              <div className="settingsReportOptions">
                 <label>
-                  <span>START</span>
-
                   <input
-                    type="time"
-                    value={shift.startTime || ""}
-                    onChange={(event) =>
-                      handleShiftChange(
-                        index,
-                        "startTime",
-                        event.target.value
-                      )
+                    type="checkbox"
+                    name="showEmployeeId"
+                    checked={
+                      settings.reportPreferences?.showEmployeeId ??
+                      true
                     }
+                    onChange={handleReportChange}
                   />
+
+                  <span>Show Employee ID</span>
                 </label>
 
-                <span className="settingsShiftArrow">→</span>
+                <label>
+                  <input
+                    type="checkbox"
+                    name="showProject"
+                    checked={
+                      settings.reportPreferences?.showProject ?? true
+                    }
+                    onChange={handleReportChange}
+                  />
+
+                  <span>Show Project</span>
+                </label>
 
                 <label>
-                  <span>END</span>
-
                   <input
-                    type="time"
-                    value={shift.endTime || ""}
-                    onChange={(event) =>
-                      handleShiftChange(
-                        index,
-                        "endTime",
-                        event.target.value
-                      )
+                    type="checkbox"
+                    name="showRemarks"
+                    checked={
+                      settings.reportPreferences?.showRemarks ?? true
                     }
+                    onChange={handleReportChange}
                   />
+
+                  <span>Show Remarks</span>
                 </label>
               </div>
-            ))}
-          </div>
-        </section>
-
-        {/* UNITS */}
-
-        <section className="settingsSection">
-          <div className="settingsSectionHeader">
-            <span className="settingsNumber">04</span>
-
-            <div className="settingsSectionIcon">
-              <Ruler size={19} />
             </div>
+          </section>
+          {user?.role === "superadmin" && <PasswordManagement />}
+        </div>
+        <div className="settingsColumn settingsProductionColumn">
+          {/* DEPARTMENTS */}
 
-            <div>
-              <p>PRODUCTION / UNITS</p>
-              <h2>Measurement units</h2>
-            </div>
-          </div>
+          <section className="settingsSection settingsDepartmentMaster">
+            <div className="settingsSectionHeader">
+              <span className="settingsNumber">04</span>
 
-          <div className="settingsUnitsList">
-            {settings.departments?.map((department, index) => (
-              <div
-                className="settingsUnitRow"
-                key={department._id || department.name}
-              >
-                <strong>{department.name}</strong>
-
-                <select
-                  value={department.unit || ""}
-                  onChange={(event) =>
-                    handleDepartmentUnit(index, event.target.value)
-                  }
-                >
-                  <option value="">NO UNIT</option>
-                  <option value="KG">KG</option>
-                  <option value="TON">TON</option>
-                  <option value="PCS">PCS</option>
-                  <option value="RMT">RMT</option>
-                  <option value="PCS">PCS</option>
-                  <option value="TON">TON</option>
-                </select>
+              <div>
+                <p>PRODUCTION / DEPARTMENTS &amp; UNITS</p>
+                <h2>Departments &amp; measurement units</h2>
               </div>
-            ))}
-          </div>
-        </section>
-
-        {/* REPORT */}
-
-        <section className="settingsSection settingsSectionWide">
-          <div className="settingsSectionHeader">
-            <span className="settingsNumber">05</span>
-
-            <div className="settingsSectionIcon">
-              <FileText size={19} />
             </div>
 
-            <div>
-              <p>REPORT / PREFERENCES</p>
-              <h2>Daily report configuration</h2>
+            <div className="settingsDepartmentColumns" aria-hidden="true"><span>DEPARTMENT</span><span>ACTIVE</span><span>UNIT</span></div>
+            <div className="settingsDepartmentList">
+              {settings.departments?.map((department, index) => (
+                <div
+                  className="settingsDepartmentRow"
+                  key={department._id || department.name}
+                >
+                  <div>
+                    <strong>{department.name}</strong>
+
+                    <span>
+                      {department.active ? "ACTIVE" : "INACTIVE"}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className={`settingsToggle ${
+                      department.active ? "active" : ""
+                    }`}
+                    onClick={() => handleDepartmentToggle(index)}
+                    aria-label={`Active status for ${department.name}`}
+                    aria-pressed={department.active}
+                  >
+                    <span />
+                  </button>
+                  <select
+                    aria-label={`Measurement unit for ${department.name}`}
+                    value={department.unit || ""}
+                    onChange={(event) =>
+                      handleDepartmentUnit(index, event.target.value)
+                    }
+                  >
+                    <option value="">NO UNIT</option>
+                    <option value="KG">KG</option>
+                    <option value="TON">TON</option>
+                    <option value="PCS">PCS</option>
+                    <option value="RMT">RMT</option>
+                  </select>
+                </div>
+              ))}
             </div>
-          </div>
-
-          <div className="settingsReportGrid">
-            <label className="settingsField">
-              <span>REPORT TITLE</span>
-
-              <input
-                type="text"
-                name="reportTitle"
-                value={
-                  settings.reportPreferences?.reportTitle || ""
-                }
-                onChange={handleReportChange}
-              />
-            </label>
-
-            <div className="settingsReportOptions">
-              <label>
-                <input
-                  type="checkbox"
-                  name="showEmployeeId"
-                  checked={
-                    settings.reportPreferences?.showEmployeeId ??
-                    true
-                  }
-                  onChange={handleReportChange}
-                />
-
-                <span>Show Employee ID</span>
-              </label>
-
-              <label>
-                <input
-                  type="checkbox"
-                  name="showProject"
-                  checked={
-                    settings.reportPreferences?.showProject ?? true
-                  }
-                  onChange={handleReportChange}
-                />
-
-                <span>Show Project</span>
-              </label>
-
-              <label>
-                <input
-                  type="checkbox"
-                  name="showRemarks"
-                  checked={
-                    settings.reportPreferences?.showRemarks ?? true
-                  }
-                  onChange={handleReportChange}
-                />
-
-                <span>Show Remarks</span>
-              </label>
-            </div>
-          </div>
-        </section>
-        {user?.role === "superadmin" && <PasswordManagement />}
+          </section>
+        </div>
       </div>
     </div>
   );

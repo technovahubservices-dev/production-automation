@@ -1,10 +1,11 @@
+import defaultDepartments from "../../../shared/departments.json";
 // Stored weight fields remain kilograms. Conversion is for display only.
 const fields = { CNC: "cuttingWeight", PTW: "weight", SETTING: "weight", WELDING: "rmt" };
 const numeric = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
 export const kgToTon = (kg) => numeric(kg) / 1000;
 export const formatTon = (value) => numeric(value) === 0 ? "0 TON" : `${numeric(value).toFixed(3)} TON`;
 export const formatRmt = (value) => `${numeric(value).toLocaleString(undefined, { maximumFractionDigits: 3 })} RMT`;
-export const formatProduction = ({ value, unit }) => unit === "TON" ? formatTon(value) : unit === "RMT" ? formatRmt(value) : "?";
+export const formatProduction = ({ value = 0, unit = "" } = {}) => unit === "TON" ? formatTon(value) : unit === "RMT" ? formatRmt(value) : "-";
 
 export function getEntryProduction(entry) {
   const field = fields[entry.department];
@@ -20,7 +21,7 @@ export function calculateProductionTotals(entries) {
     const field = fields[entry.department];
     if (field) raw[entry.department] += numeric(entry[field]);
   }
-  const departments = Object.fromEntries(Object.keys(raw).map((name) => [name,
+  const departments = Object.fromEntries([...new Set([...defaultDepartments.map(department => department.name), ...entries.map(entry => entry.department)])].map((name) => [name,
     getEntryProduction({ department: name, [fields[name]]: raw[name] }),
   ]));
   return {

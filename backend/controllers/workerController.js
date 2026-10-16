@@ -7,9 +7,10 @@ exports.createWorker = async (req, res) => {
       name,
       phone,
       designation,
+      status,
     } = req.body;
 
-    if (!employeeId || !name) {
+    if (typeof employeeId !== "string" || !employeeId.trim() || typeof name !== "string" || !name.trim()) {
       return res.status(400).json({
         success: false,
         message:
@@ -17,8 +18,12 @@ exports.createWorker = async (req, res) => {
       });
     }
 
+    if (status !== undefined && !["Active", "Inactive"].includes(status)) {
+      return res.status(400).json({ success: false, message: "Status must be Active or Inactive." });
+    }
+
     const existingWorker = await Worker.findOne({
-      employeeId: employeeId.toUpperCase(),
+      employeeId: employeeId.trim().toUpperCase(),
     });
 
     if (existingWorker) {
@@ -34,6 +39,7 @@ exports.createWorker = async (req, res) => {
       name,
       phone,
       designation,
+      status,
     });
 
     res.status(201).json({
@@ -42,7 +48,8 @@ exports.createWorker = async (req, res) => {
       data: worker,
     });
   } catch (error) {
-    console.error("Create worker error:", error);
+    if (error.code === 11000) return res.status(409).json({ success: false, message: "This Employee ID already exists." });
+    console.log("Create worker error:", error);
 
     res.status(500).json({
       success: false,
@@ -53,9 +60,8 @@ exports.createWorker = async (req, res) => {
 
 exports.getWorkers = async (req, res) => {
   try {
-    const workers = await Worker.find({
-      status: "Active",
-    }).sort({
+    const filter = req.user?.role === "superadmin" && req.query.includeInactive === "true" ? {} : { status: "Active" };
+    const workers = await Worker.find(filter).sort({
       employeeId: 1,
     });
 
@@ -65,7 +71,7 @@ exports.getWorkers = async (req, res) => {
       data: workers,
     });
   } catch (error) {
-    console.error("Get workers error:", error);
+    console.log("Get workers error:", error);
 
     res.status(500).json({
       success: false,
@@ -77,7 +83,7 @@ exports.updateWorker = async (req, res) => {
   try {
     const worker = await Worker.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      Object.fromEntries(["employeeId", "name", "phone", "designation", "status"].filter((field) => req.body[field] !== undefined).map((field) => [field, req.body[field]])),
       {
         new: true,
         runValidators: true,
@@ -97,7 +103,7 @@ exports.updateWorker = async (req, res) => {
       data: worker,
     });
   } catch (error) {
-    console.error("Update worker error:", error);
+    console.log("Update worker error:", error);
 
     res.status(500).json({
       success: false,
@@ -136,7 +142,7 @@ exports.deleteWorker = async (req, res) => {
       data: worker,
     });
   } catch (error) {
-    console.error("Deactivate worker error:", error);
+    console.log("Deactivate worker error:", error);
 
     res.status(500).json({
       success: false,

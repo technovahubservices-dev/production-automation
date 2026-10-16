@@ -1,16 +1,11 @@
+const { defaults, resolveDepartments } = require("../config/departments");
 const SystemSettings = require("../models/SystemSettings");
 
 const getDefaultSettings = () => ({
   companyName: "Starlit Steel Building Solution",
   plantName: "Production Floor",
 
-  departments: [
-    { name: "CNC", unit: "KG", active: true },
-    { name: "PTW", unit: "KG", active: true },
-    { name: "SETTING", unit: "KG", active: true },
-    { name: "WELDING", unit: "RMT", active: true },
-    { name: "CLEANING", unit: "", active: true },
-  ],
+  departments: defaults.map(department => ({ ...department })),
 
   shifts: [
     {
@@ -43,10 +38,10 @@ exports.getSettings = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: settings,
+      data: { ...settings.toObject(), departments: resolveDepartments(settings.departments) },
     });
   } catch (error) {
-    console.error("Get settings error:", error);
+    console.log("Get settings error:", error);
 
     res.status(500).json({
       success: false,
@@ -85,10 +80,10 @@ exports.updateSettings = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Settings saved successfully.",
-      data: settings,
+      data: { ...settings.toObject(), departments: resolveDepartments(settings.departments) },
     });
   } catch (error) {
-    console.error("Update settings error:", error);
+    console.log("Update settings error:", error);
 
     res.status(500).json({
       success: false,

@@ -30,7 +30,7 @@ async function createSuperAdmin() {
 
     await mongoose.connection.close();
   } catch (error) {
-    console.error("Error:", error);
+    console.log("Error:", error);
     await mongoose.connection.close();
   }
 }

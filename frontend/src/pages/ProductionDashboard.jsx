@@ -1,3 +1,5 @@
+import { useSettings } from "../context/SettingsContext";
+import { useAccessDate, formatToday } from "../hooks/useAccessDate";
 import { activityMinutes, formatMinutes } from "../utils/attendance";
 import { calculateProductionTotals, formatProduction, formatTon, formatRmt } from "../context/productionUnits";
 import { API_URL } from "../config/api";
@@ -12,24 +14,22 @@ import {
   Users,
 } from "lucide-react";
 
-const departmentNames = [
-  "CNC",
-  "PTW",
-  "SETTING",
-  "WELDING",
-  "CLEANING",
-];
 
-function ProductionDashboard({ onDepartmentClick, onWorkEntryClick, onProductionClick }) {
-  const [entries, setEntries] = useState([]);
+function ProductionDashboard({ onDepartmentClick, onWorkEntryClick, onProductionClick, user }) {
+  const { departments: configuredDepartments } = useSettings();
+  const isAdmin = user?.role === "admin";
+  const [storedEntries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(() => {
+  const [selectedDate, setSelectedDate] = useAccessDate(user, () => {
     const today = new Date();
     const localDate = new Date(
       today.getTime() - today.getTimezoneOffset() * 60_000
     );
     return localDate.toISOString().slice(0, 10);
   });
+  const entries = isAdmin ? storedEntries.filter((entry) => entry.date === selectedDate) : storedEntries;
+
+
 
   const loadDashboard = async () => {
     try {
@@ -49,7 +49,7 @@ function ProductionDashboard({ onDepartmentClick, onWorkEntryClick, onProduction
 
       setEntries((result.data || []).filter((entry) => entry.date === selectedDate));
     } catch (error) {
-      console.error("Dashboard load error:", error);
+      console.log("Dashboard load error:", error);
     } finally {
       setLoading(false);
     }
@@ -87,7 +87,7 @@ function ProductionDashboard({ onDepartmentClick, onWorkEntryClick, onProduction
   ======================================== */
 
   const departments = useMemo(() => {
-    return departmentNames.map((department, index) => {
+    return configuredDepartments.map(({ name: department }, index) => {
       const departmentEntries = entries.filter(
         (entry) => entry.department === department
       );
@@ -115,7 +115,7 @@ function ProductionDashboard({ onDepartmentClick, onWorkEntryClick, onProduction
         activities: departmentEntries.length,
       };
     });
-  }, [entries, production]);
+  }, [entries, production, configuredDepartments]);
 
 
   return (
@@ -147,13 +147,13 @@ function ProductionDashboard({ onDepartmentClick, onWorkEntryClick, onProduction
         <div className="dashboardDateControl">
           <span>PRODUCTION DATE</span>
 
-          <input
+          {isAdmin ? <strong>{formatToday(selectedDate)}</strong> : (<input
             type="date"
             value={selectedDate}
             onChange={(event) =>
               setSelectedDate(event.target.value)
             }
-          />
+          />)}
 
           <button
             type="button"
@@ -232,7 +232,7 @@ function ProductionDashboard({ onDepartmentClick, onWorkEntryClick, onProduction
             <div className="sectionHeading">
               <div>
                 <span>
-                  PRODUCTION FLOOR / 05 DEPARTMENTS
+                  PRODUCTION FLOOR / {String(departments.length).padStart(2, "0")} DEPARTMENTS
                 </span>
 
                 <h2>Department activity</h2>

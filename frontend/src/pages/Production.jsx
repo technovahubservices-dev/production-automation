@@ -1,3 +1,4 @@
+import { useAccessDate, formatToday } from "../hooks/useAccessDate";
 import { calculateProductionTotals, formatProduction, formatTon, formatRmt } from "../context/productionUnits";
 import { calculateDuration } from "./WorkEntry";
 import { useSettings } from "../context/SettingsContext";
@@ -13,13 +14,6 @@ import {
   Users,
 } from "lucide-react";
 
-const departments = [
-  "CNC",
-  "PTW",
-  "SETTING",
-  "WELDING",
-  "CLEANING",
-];
 
 const departmentFields = {
   CNC: ["pageNo", "plateNo", "length", "width", "thickness", "plateWeight", "cuttingWeight", "cuttingTime"],
@@ -48,13 +42,17 @@ const getTodayDate = () => new Intl.DateTimeFormat("en-CA", {
 }).format(new Date());
 
 function Production({ user }) {
-  const { settings } = useSettings();
+  const { settings, departments: configuredDepartments } = useSettings();
+  const departments = useMemo(() => configuredDepartments.map(department => department.name), [configuredDepartments]);
   const isSuperAdmin = user?.role === "superadmin";
    const isAdmin = user?.role === "admin";
-  const [entries, setEntries] = useState([]);
+  const [storedEntries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] =
-    useState(getTodayDate());
+    useAccessDate(user, getTodayDate());
+  const entries = isAdmin ? storedEntries.filter((entry) => entry.date === selectedDate) : storedEntries;
+
+
   const [editingEntry, setEditingEntry] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [editError, setEditError] = useState("");
@@ -162,7 +160,7 @@ function Production({ user }) {
       setLoading(true);
 
      const response = await fetch(
-  `${API_URL}/api/work-entries?date=${isAdmin ? getTodayDate() : selectedDate}`,
+  `${API_URL}/api/work-entries?date=${selectedDate}`,
   {
     headers: {
       Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -179,7 +177,7 @@ function Production({ user }) {
 
       setEntries(result.data || []);
     } catch (error) {
-      console.error("Production load error:", error);
+      console.log("Production load error:", error);
     } finally {
       setLoading(false);
     }
@@ -232,7 +230,7 @@ function Production({ user }) {
         0
       );
 
-      const { value: output, unit } = production.departments[department];
+      const { value: output, unit } = production.departments[department] || { value: 0, unit: "" };
 
       return {
         department,
@@ -243,7 +241,7 @@ function Production({ user }) {
         unit,
       };
     });
-  }, [entries, production]);
+  }, [entries, production, departments]);
 
   return (
     <main className="productionPage">
@@ -269,7 +267,7 @@ function Production({ user }) {
         <label>
   <span>REPORT DATE</span>
 
-  <input
+  {isAdmin ? <strong>{formatToday(selectedDate)}</strong> : (<input
     type="date"
     value={
       isAdmin
@@ -280,7 +278,7 @@ function Production({ user }) {
       setSelectedDate(event.target.value)
     }
     disabled={isAdmin}
-  />
+  />)}
 </label>
 
           <button
@@ -409,7 +407,7 @@ function Production({ user }) {
             <div className="productionSectionTitle">
               <div>
                 <span>
-                  {isAdmin ? getTodayDate() : selectedDate} / ACTIVITY LOG
+                  {selectedDate} / ACTIVITY LOG
                 </span>
 
                 <h2>Recorded work</h2>

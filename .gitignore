@@ -25,3 +25,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# Local employee migration backups contain employee data
+backend/scripts/employee-restoration-backup-*.json

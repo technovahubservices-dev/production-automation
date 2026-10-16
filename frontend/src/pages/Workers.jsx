@@ -1,3 +1,7 @@
+import { useWorkers } from "../hooks/useWorkers";
+import { mergeWorkerDirectory } from "../utils/workerDirectory";
+import EmployeeManagement from "../components/EmployeeManagement";
+import { useLocalToday, formatToday } from "../hooks/useAccessDate";
 import { getLocalDate, getPeriodRange, activityMinutes, formatMinutes, summarizeWorkers } from "../utils/attendance";
 import { API_URL } from "../config/api";
 import { useEffect, useMemo, useState } from "react";
@@ -29,6 +33,8 @@ function groupHistoryByDate(activities) {
 }
 
 function Workers({ user }) {
+  const today = useLocalToday();
+  const isAdmin = user?.role === "admin";
   const isSuperAdmin = user?.role === "superadmin";
   const [result, setResult] = useState({ key: "", entries: [] });
   const [loading, setLoading] = useState(true);
@@ -39,7 +45,7 @@ function Workers({ user }) {
   const [toDate, setToDate] = useState(getLocalDate);
   const [selectedWorkerId, setSelectedWorkerId] = useState(null);
   const activePeriod = isSuperAdmin ? period : "today";
-  const range = activePeriod === "custom" ? { fromDate, toDate } : getPeriodRange(activePeriod);
+  const range = isAdmin ? { fromDate: today, toDate: today } : activePeriod === "custom" ? { fromDate, toDate } : getPeriodRange(activePeriod);
   const validRange = !!range.fromDate && !!range.toDate && range.fromDate <= range.toDate;
   const requestKey = `${user?._id || user?.id || ""}:${user?.role}:${range.fromDate}:${range.toDate}`;
   const entries = result.key === requestKey ? result.entries : emptyEntries;
@@ -75,7 +81,8 @@ function Workers({ user }) {
     return () => controller.abort();
   }, [requestKey, range.fromDate, range.toDate, validRange, isSuperAdmin]);
 
-  const workers = useMemo(() => summarizeWorkers(entries), [entries]);
+  const { workers: employeeMaster, loading: employeesLoading, error: employeesError } = useWorkers();
+  const workers = useMemo(() => mergeWorkerDirectory(employeeMaster, summarizeWorkers(entries)), [employeeMaster, entries]);
   const selectedWorker = workers.find((worker) => worker.employeeId === selectedWorkerId);
   const dailyHistory = useMemo(
     () => groupHistoryByDate(selectedWorker?.activities || emptyEntries),
@@ -118,6 +125,7 @@ function Workers({ user }) {
         </div>
 
         <div className="workersDateControl">
+          {isAdmin ? <strong className="workersTodayText">{formatToday(today)}</strong> : <>
           <label>
             <span>PERIOD</span>
             <select value={activePeriod} disabled={!isSuperAdmin} onChange={(event) => setPeriod(event.target.value)}>
@@ -134,9 +142,12 @@ function Workers({ user }) {
             <label><span>FROM DATE</span><input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></label>
             <label><span>TO DATE</span><input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></label>
           </>}
-          <small>{selectedDate}</small>
+          </>}
+          {!isAdmin && <small>{selectedDate}</small>}
         </div>
       </section>
+
+      {isSuperAdmin && <EmployeeManagement />}
 
       <section className="workersMetrics">
         <div>
@@ -181,15 +192,15 @@ function Workers({ user }) {
 
         {!validRange ? (
           <div className="workersEmpty" role="alert">Select From Date and To Date, with From Date on or before To Date.</div>
-        ) : error ? (
-          <div className="workersEmpty" role="alert">{error}</div>
-        ) : loading ? (
+        ) : error || employeesError ? (
+          <div className="workersEmpty" role="alert">{error || employeesError}</div>
+        ) : loading || employeesLoading ? (
           <div className="workersEmpty">Loading workers...</div>
         ) : filteredWorkers.length === 0 ? (
           <div className="workersEmpty">
             <UserRound size={25} />
             <strong>No workers found</strong>
-            <span>No work activities match this worker search and period.</span>
+            <span>No employees match this search.</span>
           </div>
         ) : (
           <div className="workersGrid">

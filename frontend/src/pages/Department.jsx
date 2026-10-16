@@ -1,4 +1,5 @@
-import { useSettings } from "../context/SettingsContext";
+import { calculateProductionTotals, formatProduction } from "../context/productionUnits";
+import { useAccessDate, formatToday } from "../hooks/useAccessDate";
 import { API_URL } from "../config/api";
 import { useEffect, useMemo, useState } from "react";
 
@@ -12,15 +13,18 @@ import {
   X,
 } from "lucide-react";
 
-function Department({ department, onBack }) {
-  const { unitFor } = useSettings();
-  const [entries, setEntries] = useState([]);
+function Department({ department, onBack, user }) {
+  const isAdmin = user?.role === "admin";
+  const [storedEntries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedWorker, setSelectedWorker] = useState(null);
 
   const [selectedDate, setSelectedDate] =
-    useState("2026-09-30");
+    useAccessDate(user, "2026-09-30");
+  const entries = isAdmin ? storedEntries.filter((entry) => entry.date === selectedDate) : storedEntries;
+
+
 
   /* =========================================
      LOAD DEPARTMENT DATA
@@ -47,7 +51,7 @@ function Department({ department, onBack }) {
 
         setEntries(result.data || []);
       } catch (error) {
-        console.error("Department load error:", error);
+        console.log("Department load error:", error);
       } finally {
         setLoading(false);
       }
@@ -132,42 +136,7 @@ function Department({ department, onBack }) {
      OUTPUT
   ========================================= */
 
-  const totalOutput = useMemo(() => {
-    if (department === "CNC") {
-      const value = entries.reduce(
-        (total, entry) =>
-          total + Number(entry.cuttingWeight || 0),
-        0
-      );
-
-      return `${value} ${unitFor(department)}`;
-    }
-
-    if (
-      department === "PTW" ||
-      department === "SETTING"
-    ) {
-      const value = entries.reduce(
-        (total, entry) =>
-          total + Number(entry.weight || 0),
-        0
-      );
-
-      return `${value} ${unitFor(department)}`;
-    }
-
-    if (department === "WELDING") {
-      const value = entries.reduce(
-        (total, entry) =>
-          total + Number(entry.rmt || 0),
-        0
-      );
-
-      return `${value} ${unitFor(department)}`;
-    }
-
-    return "—";
-  }, [entries, department, unitFor]);
+  const totalOutput = useMemo(() => formatProduction(calculateProductionTotals(entries).departments[department]), [entries, department]);
 
   /* =========================================
      UI
@@ -188,14 +157,14 @@ function Department({ department, onBack }) {
         <label className="departmentDatePicker">
           <span>WORK DATE</span>
 
-          <input
+          {isAdmin ? <strong>{formatToday(selectedDate)}</strong> : (<input
             type="date"
             value={selectedDate}
             onChange={(event) => {
               setSelectedDate(event.target.value);
               setSelectedWorker(null);
             }}
-          />
+          />)}
         </label>
       </div>
 

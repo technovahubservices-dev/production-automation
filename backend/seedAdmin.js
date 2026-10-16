@@ -30,7 +30,7 @@ async function createAdmin() {
 
     await mongoose.connection.close();
   } catch (error) {
-    console.error("Error creating Admin:", error);
+    console.log("Error creating Admin:", error);
     await mongoose.connection.close();
   }
 }

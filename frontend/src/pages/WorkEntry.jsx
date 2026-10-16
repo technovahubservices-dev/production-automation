@@ -1,3 +1,6 @@
+import { useWorkers } from "../hooks/useWorkers";
+import { useLocalToday, formatToday } from "../hooks/useAccessDate";
+import { getLocalDate } from "../utils/attendance";
 import { useSettings } from "../context/SettingsContext";
 import { API_URL } from "../config/api";
 import { useEffect, useMemo, useState } from "react";
@@ -16,15 +19,7 @@ import {
    WORKERS
 ========================================= */
 
-const workers = [
-  { id: "EMP001", name: "Abinesh" },
-  { id: "EMP002", name: "Kumar" },
-  { id: "EMP003", name: "Arun" },
-  { id: "EMP004", name: "Suresh" },
-  { id: "EMP005", name: "Prakash" },
-  { id: "EMP006", name: "Vignesh" },
-  { id: "EMP007", name: "Manoj" },
-];
+
 
 /* =========================================
    DEPARTMENTS
@@ -107,12 +102,13 @@ export const calculateDuration = (inTime, outTime) => {
   };
 };
 function WorkEntry({ user }) {
-  const { settings, loading: settingsLoading, error: settingsError, unitFor } = useSettings();
+  const { settings, loading: settingsLoading, error: settingsError, unitFor, departments: configuredDepartments } = useSettings();
   const isAdmin = user?.role === "admin";
-const today = getTodayDate();
-  const departments = (settings?.departments || []).filter((d) => d.active === true).map((d, i) => ({ ...d, number: String(i + 1).padStart(2, "0") }));
+const today = useLocalToday();
+  const departments = configuredDepartments.map((d, i) => ({ ...d, number: String(i + 1).padStart(2, "0") }));
   const shifts = settings?.shifts || [];
 
+  const { workers, loading: workersLoading, error: workersError, refresh: refreshWorkers } = useWorkers();
   const [employee, setEmployee] = useState("");
 
   const [department, setDepartment] = useState("");
@@ -125,7 +121,7 @@ const today = getTodayDate();
   const [savingActivity, setSavingActivity] =
     useState(false);
 
-  const [formData, setFormData] = useState(() => ({
+  const [storedFormData, setFormData] = useState(() => ({
     date: getTodayDate(),
 
     shift: "",
@@ -157,6 +153,8 @@ outTime: "",
 
     remarks: "",
   }));
+  const formData = isAdmin ? { ...storedFormData, date: today } : storedFormData;
+
    const calculatedDuration = calculateDuration(
     formData.inTime,
     formData.outTime
@@ -167,6 +165,7 @@ outTime: "",
      LOAD SAVED MONGODB ENTRIES
   ========================================= */
 
+  const activityDate = isAdmin ? today : null;
   useEffect(() => {
     const loadActivities = async () => {
       try {
@@ -187,7 +186,7 @@ outTime: "",
 
         setSavedActivities(result.data || []);
       } catch (error) {
-        console.error(
+        console.log(
           "Load production records error:",
           error
         );
@@ -197,7 +196,7 @@ outTime: "",
     };
 
     loadActivities();
-  }, []);
+  }, [activityDate]);
 
   /* =========================================
      HANDLE INPUT
@@ -224,7 +223,7 @@ outTime: "",
   ========================================= */
 
   const selectedWorker = workers.find(
-    (worker) => worker.id === employee
+    (worker) => worker.employeeId === employee
   );
 
   /* =========================================
@@ -299,7 +298,7 @@ outTime: "",
 
   const saveActivity = async () => {
     if (!configurationValid) { alert("Select an active department and configured shift before saving."); return; }
-    if (!employee) {
+    if (workersLoading || workersError || !selectedWorker) {
       alert("Please select a worker.");
       return;
     }
@@ -334,6 +333,7 @@ if (!calculatedDuration.hours) {
   department,
 
   ...formData,
+  date: isAdmin ? getLocalDate() : formData.date,
 
 
 };
@@ -374,7 +374,7 @@ if (!calculatedDuration.hours) {
 
       alert("Work activity saved successfully.");
     } catch (error) {
-      console.error(
+      console.log(
         "Save work activity error:",
         error
       );
@@ -443,7 +443,9 @@ if (!calculatedDuration.hours) {
 
           <div className="employeeSelector">
             <select
-              value={employee}
+              aria-label="Employee"
+              disabled={workersLoading}
+              value={selectedWorker ? employee : ""}
               onChange={(event) =>
                 { setEmployee(event.target.value); resetActivityFields(); }
               }
@@ -454,10 +456,10 @@ if (!calculatedDuration.hours) {
 
               {workers.map((worker) => (
                 <option
-                  key={worker.id}
-                  value={worker.id}
+                  key={worker.employeeId}
+                  value={worker.employeeId}
                 >
-                  {worker.id} - {worker.name}
+                  {worker.employeeId} - {worker.name}
                 </option>
               ))}
             </select>
@@ -465,20 +467,24 @@ if (!calculatedDuration.hours) {
             <ChevronDown size={18} />
           </div>
 
+          {workersError && <p role="alert">{workersError}</p>}
+          {!workersLoading && !workersError && workers.length === 0 && <p>No active employees available. Ask Super Admin to add an employee.</p>}
+          <button type="button" onClick={refreshWorkers} disabled={workersLoading}>Refresh employees</button>
+
           <label className="entryDateBlock">
             <CalendarDays size={20} />
 
             <div>
               <span>WORK DATE *</span>
 
-              <input
+              {isAdmin ? <strong>{formatToday(today)}</strong> : (<input
   type="date"
   name="date"
   value={isAdmin ? today : formData.date}
   onChange={handleChange}
   disabled={isAdmin}
   required
-/>
+/>)}
             </div>
           </label>
 
@@ -490,7 +496,7 @@ if (!calculatedDuration.hours) {
 
               <div>
                 <span>
-                  {selectedWorker.id}
+                  {selectedWorker.employeeId}
                 </span>
 
                 <strong>

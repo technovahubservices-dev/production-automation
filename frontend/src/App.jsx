@@ -362,6 +362,7 @@ function App() {
 
         {currentPage === "overview" && (
           <Dashboard
+            user={user}
             onDepartmentClick={handleDepartmentClick}
             onWorkEntryClick={openWorkEntry}
             onProductionClick={() => navigateTo("production")}
@@ -382,7 +383,7 @@ function App() {
               </main>
             }
           >
-            <IntelligenceDashboard />
+            <IntelligenceDashboard user={user} />
           </Suspense>
         )}
 
@@ -393,6 +394,7 @@ function App() {
         {currentPage === "department" &&
           selectedDepartment && (
             <Department
+              user={user}
               department={selectedDepartment}
               onBack={goToOverview}
             />
@@ -422,7 +424,7 @@ function App() {
             REPORTS
             ================================================= */}
 
-        {currentPage === "reports" && <Reports />}
+        {currentPage === "reports" && <Reports user={user} />}
 
         {/* =================================================
             SETTINGS
