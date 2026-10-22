@@ -75,13 +75,9 @@ const workEntrySchema = new mongoose.Schema(
     department: {
       type: String,
       required: true,
-      enum: [
-        "CNC",
-        "PTW",
-        "SETTING",
-        "WELDING",
-        "CLEANING",
-      ],
+      // Department names are configured in SystemSettings and validated by
+      // createWorkEntry. Keeping a fixed enum here silently rejects any
+      // department added after the original five defaults.
     },
 
     shift: {
