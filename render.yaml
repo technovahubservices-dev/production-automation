@@ -1,0 +1,24 @@
+# Reference settings for the existing production-automation service.
+services:
+  - type: web
+    name: production-automation
+    runtime: node
+    branch: master
+    autoDeployTrigger: "off"
+    rootDir: backend
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: BIOMETRIC_INTEGRATION_ENABLED
+        value: "true"
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: BIOMETRIC_SERVICE_SECRET
+        sync: false

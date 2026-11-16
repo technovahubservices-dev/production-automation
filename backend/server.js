@@ -2,18 +2,17 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const { corsOptions } = require('./config/cors');
 
 dotenv.config();
 
 const app = express();
 
-app.use(
-  cors({
-    origin:true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+app.use(cors(corsOptions()));
+app.use((error, _req, res, next) => {
+  if (error.status === 403) return res.status(403).json({ success: false, message: 'Origin is not permitted.' });
+  next(error);
+});
 
 app.use(express.json({ verify: (req, _res, buffer) => { req.rawBody = buffer.toString('utf8'); } }));
 app.use('/api/attendance', require('./routes/attendanceRoutes'));

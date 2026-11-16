@@ -23,20 +23,20 @@ function cbor(value) {
   const entries = value instanceof Map ? [...value] : Object.entries(value);
   return Buffer.concat([head(5, entries.length), ...entries.flatMap(([k, v]) => [cbor(k), cbor(v)])]);
 }
-function authenticator() {
+function authenticator(rpID = 'localhost') {
   const { privateKey, publicKey } = crypto.generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
   const jwk = publicKey.export({ format: 'jwk' });
   const id = crypto.randomBytes(32), id64 = id.toString('base64url');
   const cose = cbor(new Map([[1, 2], [3, -7], [-1, 1], [-2, Buffer.from(jwk.x, 'base64url')], [-3, Buffer.from(jwk.y, 'base64url')]]));
   let counter = 0;
-  function data(flags) { const out = Buffer.alloc(37); crypto.createHash('sha256').update('localhost').digest().copy(out); out[32] = flags; out.writeUInt32BE(++counter, 33); return out; }
+  function data(flags) { const out = Buffer.alloc(37); crypto.createHash('sha256').update(rpID).digest().copy(out); out[32] = flags; out.writeUInt32BE(++counter, 33); return out; }
   function client(type, options, origin) { return Buffer.from(JSON.stringify({ type, challenge: options.challenge, origin: origin || 'http://localhost:5174', crossOrigin: false })); }
   return {
     id: id64,
-    register(options) {
+    register(options, origin) {
       const size = Buffer.alloc(2); size.writeUInt16BE(id.length);
       const authData = Buffer.concat([data(0x45), Buffer.alloc(16), size, id, cose]);
-      return { id: id64, rawId: id64, type: 'public-key', clientExtensionResults: {}, response: { clientDataJSON: client('webauthn.create', options).toString('base64url'), attestationObject: cbor({ fmt: 'none', authData, attStmt: {} }).toString('base64url'), transports: ['internal'] } };
+      return { id: id64, rawId: id64, type: 'public-key', clientExtensionResults: {}, response: { clientDataJSON: client('webauthn.create', options, origin).toString('base64url'), attestationObject: cbor({ fmt: 'none', authData, attStmt: {} }).toString('base64url'), transports: ['internal'] } };
     },
     authenticate(options, origin, flags = 0x05) {
       const authData = data(flags), clientData = client('webauthn.get', options, origin);
@@ -135,6 +135,14 @@ test('isolated replica-set integration: signed attendance, real WebAuthn, report
     };
     const employee = await Worker.create({ employeeId: 'EMP002', name: 'Canonical Starlit Name' });
     const device = authenticator();
+    await t.test('enrollment lookup requires admin and returns the signed canonical Starlit employee', async () => {
+      const url = bioBase + '/api/employees/emp002/lookup';
+      assert.equal((await fetch(url)).status, 401);
+      const response = await fetch(url, { headers: { 'x-admin-key': process.env.ADMIN_ENROLL_KEY } });
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json(), { ok: true, employeeId: 'EMP002', name: employee.name });
+      assert.equal((await Worker.findById(employee._id)).employeeId, 'EMP002');
+    });
     await t.test('linked enrollment and real WebAuthn registration use canonical identity and credential ID', async () => {
       const enrolled = await bio('/enroll', { employeeId: ' emp002 ', name: 'Forged', faceDescriptor: Array(128).fill(0) }, true);
       assert.equal(enrolled.status, 200); assert.equal(enrolled.body.name, employee.name);
@@ -143,6 +151,11 @@ test('isolated replica-set integration: signed attendance, real WebAuthn, report
       assert.equal(registered.status, 200, JSON.stringify(registered.body));
       assert.equal((await Employee.findOne({ employeeId: 'EMP002' })).credentials[0].credentialID, device.id);
       assert.equal((await bio('/passkey/register/verify', { employeeId: 'EMP002', sessionId: options.sessionId }, true)).status, 401);
+      assert.equal((await bio('/enroll', { employeeId: 'EMP002', name: 'Forged again', faceDescriptor: Array(128).fill(0) }, true)).status, 200);
+      const stored = await Employee.findOne({ employeeId: 'EMP002' });
+      assert.equal(stored.credentials[0].credentialID, device.id);
+      assert.equal(stored.starlitWorkerId, String(employee._id));
+      assert.equal(stored.name, employee.name);
     });
     async function authorize(action, tweaks = {}) {
       const options = (await bio('/passkey/auth/options', { employeeId: 'EMP002', action })).body;
@@ -188,6 +201,47 @@ test('isolated replica-set integration: signed attendance, real WebAuthn, report
       assert.equal(await VerificationSession.countDocuments({ delivery: 'pending' }), 0);
       const receipt = await fetch(bioBase + '/api/attendance/receipt/' + first._id);
       assert.equal((await receipt.json()).attendance.state, 'delivered');
+    });
+    await t.test('production RP verifies real passkeys from apex and www, rejects foreign origins, then records both attendance actions', async () => {
+      const saved = { ...process.env };
+      Object.assign(process.env, { NODE_ENV: 'production', ORIGIN: 'https://technovahub.in,https://www.technovahub.in', RP_ID: 'technovahub.in',
+        MONGODB_URI: repl.getUri('biometric_test'), STARLIT_API_URL: 'https://production-automation-5ss0.onrender.com' });
+      const productionServer = createApp().listen(0, '127.0.0.1');
+      await new Promise(resolve => productionServer.once('listening', resolve));
+      // Startup validates the production target; all test service requests stay on the isolated receiver.
+      process.env.STARLIT_API_URL = base;
+      try {
+        const productionBase = `http://127.0.0.1:${productionServer.address().port}`;
+        const request = async (route, body, origin = 'https://technovahub.in', admin = false) => {
+          const response = await fetch(productionBase + '/api' + route, { method: 'POST', headers: {
+            'Content-Type': 'application/json', Origin: origin, ...(admin ? { 'x-admin-key': process.env.ADMIN_ENROLL_KEY } : {}) }, body: JSON.stringify(body) });
+          return { status: response.status, body: await response.json() };
+        };
+        const worker = await Worker.create({ employeeId: 'EMP003', name: 'Production origin test' });
+        const device = authenticator('technovahub.in');
+        assert.equal((await request('/enroll', { employeeId: 'EMP003', faceDescriptor: Array(128).fill(0) }, undefined, true)).status, 200);
+        let options = (await request('/passkey/register/options', { employeeId: 'EMP003' }, undefined, true)).body;
+        assert.equal(options.rp.id, 'technovahub.in');
+        assert.equal((await request('/passkey/register/verify', { employeeId: 'EMP003', sessionId: options.sessionId,
+          response: device.register(options, 'https://www.technovahub.in') }, 'https://www.technovahub.in', true)).status, 200);
+        options = (await request('/passkey/auth/options', { employeeId: 'EMP003' })).body;
+        // An allowed HTTP Origin cannot hide a foreign origin signed by the authenticator.
+        assert.equal((await request('/passkey/auth/verify', { employeeId: 'EMP003', sessionId: options.sessionId,
+          response: device.authenticate(options, 'https://evil.test') })).status, 400);
+        for (const [action, origin] of [['CHECK_IN', 'https://technovahub.in'], ['CHECK_OUT', 'https://www.technovahub.in']]) {
+          options = (await request('/passkey/auth/options', { employeeId: 'EMP003', action }, origin)).body;
+          assert.equal((await request('/passkey/auth/verify', { employeeId: 'EMP003', action, sessionId: options.sessionId,
+            response: device.authenticate(options, origin) }, origin)).status, 200);
+          const result = await request('/face/verify', { employeeId: 'EMP003', action, sessionId: options.sessionId, faceDescriptor: Array(128).fill(0) }, origin);
+          assert.equal(result.status, 200); assert.equal(result.body.attendance.state, 'delivered');
+        }
+        const rows = await AttendanceSession.find({ workerId: worker._id }).lean();
+        assert.equal(rows.length, 1); assert.equal(rows[0].status, 'Checked Out'); assert.ok(rows[0].durationMs > 0);
+      } finally {
+        await new Promise(resolve => productionServer.close(resolve));
+        for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key];
+        Object.assign(process.env, saved);
+      }
     });
   } finally {
     if (bioServer) await new Promise(resolve => bioServer.close(resolve));
