@@ -1,0 +1,13 @@
+.attendancePage { padding: 28px; color: #24343b; }
+.attendancePage h1 { font-size: 32px; margin-bottom: 10px; }
+.attendancePage h2 { margin: 28px 0 12px; }
+.attendanceControls { display: flex; gap: 14px; align-items: end; flex-wrap: wrap; margin: 22px 0; }
+.attendanceControls label { display: flex; gap: 6px; flex-direction: column; font-size: 13px; font-weight: 600; }
+.attendanceControls input, .attendanceControls select, .attendanceControls button { border: 1px solid #bbc4c8; border-radius: 7px; padding: 10px; background: white; color: #24343b; }
+.attendanceControls button { cursor: pointer; }
+.attendanceTable { overflow-x: auto; background: white; border: 1px solid #dde2e4; border-radius: 10px; }
+.attendanceTable table { width: 100%; border-collapse: collapse; text-align: left; }
+.attendanceTable th, .attendanceTable td { padding: 13px; border-bottom: 1px solid #e5e8ea; vertical-align: top; min-width: 100px; }
+.attendanceTable th { background: #edf1f2; font-size: 13px; }
+.attendanceTable small { display: block; margin-top: 6px; }
+.attendancePage [role=alert] { padding: 14px; background: #fff0eb; color: #8a3020; }

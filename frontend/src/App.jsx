@@ -16,6 +16,7 @@ import Department from "./pages/Department";
 import WorkEntry from "./pages/WorkEntry";
 import Production from "./pages/Production";
 import Workers from "./pages/Workers";
+import Attendance from "./pages/Attendance";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
@@ -208,6 +209,7 @@ function App() {
             <span>Production</span>
           </button>
 
+          <button type="button" className={`navItem ${currentPage === 'attendance' ? 'active' : ''}`} onClick={() => navigateTo('attendance')}><Users size={18} /><span>Attendance</span></button>
           {/* WORKERS */}
 
           <button
@@ -321,6 +323,8 @@ function App() {
                 ? "PRODUCTION CONTROL"
                 : currentPage === "workers"
                 ? "WORKFORCE"
+                : currentPage === "attendance"
+                ? "ATTENDANCE"
                 : currentPage === "reports"
                 ? "DAILY REPORT"
                 : currentPage === "settings"
@@ -419,6 +423,7 @@ function App() {
             ================================================= */}
 
         {currentPage === "workers" && <Workers user={user} />}
+        {currentPage === 'attendance' && <Attendance user={user} />}
 
         {/* =================================================
             REPORTS
