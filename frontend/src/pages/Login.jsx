@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Eye, EyeOff, LockKeyhole, User } from "lucide-react";
+import { API_URL } from "../config/api";
 import "./Login.css";
 
 function Login({ onLogin }) {
@@ -21,7 +22,7 @@ function Login({ onLogin }) {
       setLoading(true);
       setError("");
 
-      const response = await fetch("https://production-automation-5ss0.onrender.com/api/auth/login", {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

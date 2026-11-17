@@ -1,39 +1,10 @@
-const express = require("express");
 const mongoose = require("mongoose");
-const cors = require("cors");
 const dotenv = require("dotenv");
-const { corsOptions } = require('./config/cors');
+const { createApp } = require('./app');
 
 dotenv.config();
 
-const app = express();
-
-app.use(cors(corsOptions()));
-app.use((error, _req, res, next) => {
-  if (error.status === 403) return res.status(403).json({ success: false, message: 'Origin is not permitted.' });
-  next(error);
-});
-
-app.use(express.json({ verify: (req, _res, buffer) => { req.rawBody = buffer.toString('utf8'); } }));
-app.use('/api/attendance', require('./routes/attendanceRoutes'));
-
-app.get("/", (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "Starlit Production Automation API is running",
-  });
-});
-
-app.use(
-  "/api/work-entries",
-  require("./routes/workEntryRoutes")
-);
-app.use(
-  "/api/workers",
-  require("./routes/workerRoutes")
-);
-app.use("/api/settings", require("./routes/settingsRoutes"));
-app.use("/api/auth", require("./routes/authRoutes"));
+const app = createApp();
 
 const PORT = process.env.PORT || 5000;
 
