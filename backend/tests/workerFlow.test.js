@@ -6,9 +6,13 @@ const User = require('../models/User');
 const Worker = require('../models/Worker');
 const WorkEntry = require('../models/WorkEntry');
 const Settings = require('../models/SystemSettings');
+const eligibility = require('../services/attendanceEligibility');
 test('authenticated worker management and Admin work entry flow', async () => {
   process.env.JWT_SECRET = 'worker-flow-test-only';
   const originals = [User.findById, Worker.findOne, Worker.find, Worker.create, Worker.findByIdAndUpdate, WorkEntry.create, Settings.findOne];
+  const originalEligibility = eligibility.getCheckedInWorkers;
+  // This worker-management test supplies attendance eligibility separately.
+  eligibility.getCheckedInWorkers = async ({ employeeId }) => records.filter(w => w.employeeId === employeeId && w.status === 'Active');
   const existing = [
     { _id: 'existing1', employeeId: 'EMP001', name: 'Existing Worker', phone: '123', designation: 'Worker', status: 'Active' },
     { _id: 'existing2', employeeId: 'EMP002', name: 'Existing Inactive', status: 'Inactive' },
@@ -69,5 +73,6 @@ test('authenticated worker management and Admin work entry flow', async () => {
   } finally {
     await new Promise(resolve => server.close(resolve));
     [User.findById, Worker.findOne, Worker.find, Worker.create, Worker.findByIdAndUpdate, WorkEntry.create, Settings.findOne] = originals;
+    eligibility.getCheckedInWorkers = originalEligibility;
   }
 });

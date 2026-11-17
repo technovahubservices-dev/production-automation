@@ -1,7 +1,7 @@
 const { resolveDepartments } = require("../config/departments");
 const SystemSettings = require("../models/SystemSettings");
 const WorkEntry = require("../models/WorkEntry");
-const Worker = require("../models/Worker");
+const attendanceEligibility = require('../services/attendanceEligibility');
 
 /* =========================================
    INDIA TODAY DATE
@@ -62,7 +62,6 @@ exports.createWorkEntry = async (req, res) => {
   try {
     const {
       employeeId,
-      employeeName,
       date,
       department,
       inTime,
@@ -72,7 +71,7 @@ exports.createWorkEntry = async (req, res) => {
     // -----------------------------------------
     // REQUIRED FIELD VALIDATION
     // -----------------------------------------
-    if (!employeeId || (req.user?.role !== "admin" && !employeeName) || !date || !department) {
+    if (typeof employeeId !== "string" || !employeeId.trim() || !date || !department) {
       return res.status(400).json({
         success: false,
         message:
@@ -100,12 +99,6 @@ exports.createWorkEntry = async (req, res) => {
     // HOURS VALIDATION
     // -----------------------------------------
 
-    let selectedWorker;
-    if (req.user?.role === "admin") {
-      if (typeof employeeId !== "string") return res.status(400).json({ success: false, message: "Select an active employee." });
-      selectedWorker = await Worker.findOne({ employeeId: employeeId.trim().toUpperCase(), status: "Active" });
-      if (!selectedWorker) return res.status(400).json({ success: false, message: "Select an active employee from the employee list." });
-    }
     const duration = calculateWorkDuration(inTime, outTime);
     if (!duration) {
       return res.status(400).json({ success: false, message: "Valid In Time and Out Time are required." });
@@ -162,11 +155,27 @@ exports.createWorkEntry = async (req, res) => {
     // -----------------------------------------
     // CREATE WORK ENTRY
     // -----------------------------------------
+    let selectedWorker;
+    try {
+      [selectedWorker] = await attendanceEligibility.getCheckedInWorkers({ employeeId: employeeId.trim().toUpperCase() });
+    } catch {
+      return res.status(503).json({
+        success: false,
+        message: 'Unable to verify employee attendance. Please retry before adding work.',
+      });
+    }
+    if (!selectedWorker) {
+      return res.status(409).json({
+        success: false,
+        code: 'EMPLOYEE_NOT_CHECKED_IN',
+        message: 'Employee must be biometrically checked in today and not checked out before adding work.',
+      });
+    }
     const workEntry = await WorkEntry.create({
       ...req.body,
       editHistory: [],
-      employeeId: selectedWorker ? selectedWorker.employeeId : employeeId,
-      employeeName: selectedWorker ? selectedWorker.name : employeeName,
+      employeeId: selectedWorker.employeeId,
+      employeeName: selectedWorker.name,
 
       // Admin date is forced again server-side.
       date:

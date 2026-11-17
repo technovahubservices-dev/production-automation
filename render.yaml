@@ -5,9 +5,10 @@ services:
     runtime: node
     branch: master
     autoDeployTrigger: "off"
-    rootDir: backend
-    buildCommand: npm ci --omit=dev
-    startCommand: npm start
+    # The backend imports shared/departments.json; recovery scripts also read frontend fixtures.
+    rootDir: .
+    buildCommand: npm --prefix backend ci --omit=dev
+    startCommand: npm --prefix backend start
     healthCheckPath: /
     envVars:
       - key: NODE_VERSION

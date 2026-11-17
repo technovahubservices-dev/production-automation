@@ -1,4 +1,4 @@
-import { useWorkers } from "../hooks/useWorkers";
+import { useCheckedInWorkers } from "../hooks/useCheckedInWorkers";
 import { useLocalToday, formatToday } from "../hooks/useAccessDate";
 import { getLocalDate } from "../utils/attendance";
 import { useSettings } from "../context/SettingsContext";
@@ -14,18 +14,6 @@ import {
   Plus,
   UserRound,
 } from "lucide-react";
-
-/* =========================================
-   WORKERS
-========================================= */
-
-
-
-/* =========================================
-   DEPARTMENTS
-========================================= */
-
-
 
 const getTodayDate = () => new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit",
@@ -108,7 +96,7 @@ const today = useLocalToday();
   const departments = configuredDepartments.map((d, i) => ({ ...d, number: String(i + 1).padStart(2, "0") }));
   const shifts = settings?.shifts || [];
 
-  const { workers, loading: workersLoading, error: workersError, refresh: refreshWorkers } = useWorkers();
+  const { workers, loading: workersLoading, error: workersError, refresh: refreshWorkers } = useCheckedInWorkers();
   const [employee, setEmployee] = useState("");
 
   const [department, setDepartment] = useState("");
@@ -226,6 +214,10 @@ outTime: "",
     (worker) => worker.employeeId === employee
   );
 
+  useEffect(() => {
+    if (employee && !workersLoading && !selectedWorker) setEmployee("");
+  }, [employee, workersLoading, selectedWorker]);
+
   /* =========================================
      EMPLOYEE ACTIVITIES FOR SELECTED DATE
   ========================================= */
@@ -299,7 +291,7 @@ outTime: "",
   const saveActivity = async () => {
     if (!configurationValid) { alert("Select an active department and configured shift before saving."); return; }
     if (workersLoading || workersError || !selectedWorker) {
-      alert("Please select a worker.");
+      alert(workersError || "Please select an employee who is currently checked in.");
       return;
     }
 
@@ -357,6 +349,10 @@ if (!calculatedDuration.hours) {
       const result = await response.json();
 
       if (!response.ok || result.success !== true || !result.data?._id) {
+        if (result.code === "EMPLOYEE_NOT_CHECKED_IN") {
+          setEmployee("");
+          await refreshWorkers();
+        }
         alert(
           result.message ||
             "Unable to save work activity."
@@ -444,7 +440,7 @@ if (!calculatedDuration.hours) {
           <div className="employeeSelector">
             <select
               aria-label="Employee"
-              disabled={workersLoading}
+              disabled={workersLoading || !!workersError || workers.length === 0}
               value={selectedWorker ? employee : ""}
               onChange={(event) =>
                 { setEmployee(event.target.value); resetActivityFields(); }
@@ -468,7 +464,8 @@ if (!calculatedDuration.hours) {
           </div>
 
           {workersError && <p role="alert">{workersError}</p>}
-          {!workersLoading && !workersError && workers.length === 0 && <p>No active employees available. Ask Super Admin to add an employee.</p>}
+          {workersLoading && <p role="status">Loading checked-in employees...</p>}
+          {!workersLoading && !workersError && workers.length === 0 && <p>No employees currently checked in.</p>}
           <button type="button" onClick={refreshWorkers} disabled={workersLoading}>Refresh employees</button>
 
           <label className="entryDateBlock">
@@ -920,7 +917,7 @@ if (!calculatedDuration.hours) {
               type="button"
               className="saveActivityButton"
               onClick={saveActivity}
-              disabled={savingActivity || !configurationValid}
+              disabled={savingActivity || !configurationValid || workersLoading || !!workersError || !selectedWorker}
             >
               <Plus size={18} />
 

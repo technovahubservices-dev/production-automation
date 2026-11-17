@@ -1,15 +1,14 @@
 import { X, Clock3, Layers3, BriefcaseBusiness } from "lucide-react";
-import { workEntries } from "../data/workers";
 
-function WorkerPanel({ worker, onClose }) {
+function WorkerPanel({ worker, entries = worker?.activities || [], date, onClose }) {
   if (!worker) return null;
 
-  const employeeEntries = workEntries.filter(
+  const employeeEntries = entries.filter(
     (entry) => entry.employeeId === worker.employeeId
   );
 
   const totalHours = employeeEntries.reduce(
-    (sum, entry) => sum + entry.hours,
+    (sum, entry) => sum + Number(entry.hours || 0),
     0
   );
 
@@ -69,12 +68,12 @@ function WorkerPanel({ worker, onClose }) {
 
         <div className="departmentTimeline">
           <div className="timelineHeading">
-            <span>30 SEP 2026</span>
-            <h3>Today's activity</h3>
+            <span>{date || "Selected work period"}</span>
+            <h3>Production activity</h3>
           </div>
 
           {employeeEntries.map((entry, index) => (
-            <div className="timelineItem" key={entry.id}>
+            <div className="timelineItem" key={entry._id || entry.id || index}>
               <div className="timelineMarker">
                 <span>{String(index + 1).padStart(2, "0")}</span>
               </div>

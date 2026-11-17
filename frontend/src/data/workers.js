@@ -1,3 +1,5 @@
+// Historical recovery fixture only. Live employee lists come from /api/workers.
+// Keep these identities available to the employee audit/restoration scripts.
 export const workEntries = [
   {
     id: 1,

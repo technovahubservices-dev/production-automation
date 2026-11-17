@@ -4,12 +4,10 @@ const crypto = require('node:crypto');
 const mongoose = require('mongoose');
 const Worker = require('../models/Worker');
 const { originalEmployees } = require('./auditEmployees');
+const { readDependencies, dependencyConflicts, workerIdentityConflicts } = require('./employeeDependencies');
 
-function planRestoration(original, workers, historical, { resolveEmp001Test = false } = {}) {
-  const conflicts = [], missing = [], unchanged = [], corrections = [];
-  const counts = new Map();
-  for (const worker of workers) counts.set(worker.employeeId, (counts.get(worker.employeeId) || 0) + 1);
-  for (const [employeeId, count] of counts) if (count > 1) conflicts.push({ employeeId, reason: 'Duplicate employee IDs already exist; stop for manual review.' });
+function planRestoration(original, workers, historical, { resolveEmp001Test = false, dependencies } = {}) {
+  const conflicts = workerIdentityConflicts(workers), missing = [], unchanged = [], corrections = [];
   for (const employee of original) {
     const worker = workers.find(w => w.employeeId === employee.employeeId);
     const dependency = historical.find(h => h._id === employee.employeeId);
@@ -27,6 +25,7 @@ function planRestoration(original, workers, historical, { resolveEmp001Test = fa
     } else if (worker) unchanged.push(employee.employeeId);
     else missing.push(employee);
   }
+  conflicts.push(...dependencyConflicts(original, workers, dependencies));
   return { missing, unchanged, corrections, conflicts };
 }
 
@@ -38,9 +37,9 @@ function correctionOperation(correction) {
   };
 }
 
-async function historyFingerprint(db, session) {
+async function historyFingerprint(db, session, collection = 'workentries') {
   const hash = crypto.createHash('sha256'); let count = 0;
-  for await (const entry of db.collection('workentries').find({}, { session }).sort({ _id: 1 })) { hash.update(JSON.stringify(entry)); count++; }
+  for await (const entry of db.collection(collection).find({}, { session }).sort({ _id: 1 })) { hash.update(JSON.stringify(entry)); count++; }
   return { count, sha256: hash.digest('hex') };
 }
 
@@ -61,10 +60,11 @@ async function main() {
   const audit = async (session) => {
     const workers = await workersCollection.find({}, { session }).sort({ _id: 1 }).toArray();
     const historical = await db.collection('workentries').aggregate([{ $group: { _id: '$employeeId', names: { $addToSet: '$employeeName' }, entries: { $sum: 1 } } }], { session }).toArray();
-    return { workers, historical, plan: planRestoration(original, workers, historical, { resolveEmp001Test }) };
+    const dependencies = await readDependencies(db, session);
+    return { workers, historical, dependencies, plan: planRestoration(original, workers, historical, { resolveEmp001Test, dependencies }) };
   };
   const before = await audit();
-  console.log('AUDIT ' + JSON.stringify({ database: db.databaseName, mode: apply ? 'apply' : 'dry-run', workerCount: before.workers.length, historicalUnique: before.historical.length, historicalPresent: before.historical.filter(h => before.workers.some(w => w.employeeId === h._id)), historicalMissing: before.historical.filter(h => !before.workers.some(w => w.employeeId === h._id)), ...before.plan }, null, 2));
+  console.log('AUDIT ' + JSON.stringify({ database: db.databaseName, mode: apply ? 'apply' : 'dry-run', workerCount: before.workers.length, historicalUnique: before.historical.length, dependencies: before.dependencies, historicalPresent: before.historical.filter(h => before.workers.some(w => w.employeeId === h._id)), historicalMissing: before.historical.filter(h => !before.workers.some(w => w.employeeId === h._id)), ...before.plan }, null, 2));
   if (before.plan.conflicts.length) throw new Error('Restoration stopped before writes. Resolve reported identity/status conflicts first. EMP001 Test was not changed.');
   if (!apply) { console.log('DRY RUN ONLY: no records changed. Run with --apply only after reviewing the audit.'); return; }
   const indexes = await workersCollection.indexes();
@@ -75,8 +75,12 @@ async function main() {
       const current = await audit(session);
       if (current.plan.conflicts.length) throw new Error('Data changed or conflicts appeared; aborting transaction.');
       const historyBefore = await historyFingerprint(db, session);
+      const attendanceBefore = {};
+      for (const collection of ['attendancesessions', 'attendanceevents', 'attendancecursors']) {
+        attendanceBefore[collection] = await historyFingerprint(db, session, collection);
+      }
       const snapshotPath = path.join(__dirname, 'employee-restoration-backup-' + Date.now() + '.json');
-      fs.writeFileSync(snapshotPath, JSON.stringify({ database: db.databaseName, workers: current.workers, historyFingerprint: historyBefore }, null, 2), { flag: 'wx' });
+      fs.writeFileSync(snapshotPath, JSON.stringify({ database: db.databaseName, workers: current.workers, historyFingerprint: historyBefore, attendanceFingerprints: attendanceBefore }, null, 2), { flag: 'wx' });
       console.log('Worker backup: ' + snapshotPath);
       for (const correction of current.plan.corrections) {
         const { filter, update } = correctionOperation(correction);
@@ -101,6 +105,10 @@ async function main() {
         if (JSON.stringify(existing) !== JSON.stringify(expected)) throw new Error('Unexpected existing Worker change; aborting transaction.');
       }
       if (JSON.stringify(await historyFingerprint(db, session)) !== JSON.stringify(historyBefore)) throw new Error('WorkEntry fingerprint changed; aborting transaction.');
+      for (const collection of Object.keys(attendanceBefore)) {
+        if (JSON.stringify(await historyFingerprint(db, session, collection)) !== JSON.stringify(attendanceBefore[collection]))
+          throw new Error('Attendance fingerprint changed; aborting transaction.');
+      }
     }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
   } finally { await session.endSession(); }
   // Exercise the actual GET controller with its existing Active filter.

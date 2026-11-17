@@ -4,7 +4,18 @@ const AttendanceSession = require('../models/AttendanceSession');
 const { protect } = require('../middleware/authMiddleware');
 const { biometricServiceAuth } = require('../middleware/biometricServiceAuth');
 const { ingest, indiaDate, summarize } = require('../services/attendanceService');
+const { getCheckedInWorkers } = require('../services/attendanceEligibility');
 const router = express.Router();
+router.get('/checked-in-workers', protect, async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const now = new Date();
+    const workers = await getCheckedInWorkers({ now });
+    res.json({ success: true, data: workers, attendanceDate: indiaDate(now), timezone: 'Asia/Kolkata' });
+  } catch {
+    res.status(503).json({ success: false, message: 'Unable to load checked-in employees. Please retry.' });
+  }
+});
 router.get('/employees/:employeeId', biometricServiceAuth, async (req, res) => {
   try {
     const worker = await Worker.findOne({ employeeId: req.params.employeeId.trim().toUpperCase(), status: 'Active' }).lean();
